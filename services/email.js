@@ -18,7 +18,7 @@ class EmailService {
     const mailGenerator = new Mailgen({
       theme: "default",
       product: {
-        name: "Tetiana Inc.",
+        name: "Julls Ju",
         link: this.link,
       },
     });
