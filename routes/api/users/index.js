@@ -6,6 +6,7 @@ const upload = require("../../../helpers/upload");
 
 const {
   signupUserValidation,
+  resendVerifyEmailValidation,
   updateUserSubscriptionValidation,
   loginUserValidation,
 } = require("./validation");
@@ -15,6 +16,9 @@ router.get("/current", guard, ctrl.getCurrent);
 router.post("/signup", signupUserValidation, ctrl.signup);
 router.post("/login", loginUserValidation, ctrl.login);
 router.post("/logout", guard, ctrl.logout);
+
+router.get("/verify/:verifyToken", ctrl.verify);
+router.post("/verify", resendVerifyEmailValidation, ctrl.resendVerifyEmail);
 
 router.patch(
   "/subscription",

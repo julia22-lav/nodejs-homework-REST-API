@@ -6,6 +6,8 @@ const fs = require("fs/promises");
 const path = require("path");
 const SECRET_KEY = process.env.SECRET_KEY;
 const UploadAvatarService = require("../services/local-upload");
+const EmailService = require("../services/email");
+const User = require("../model/user");
 
 const getCurrent = async (req, res, next) => {
   try {
@@ -39,7 +41,15 @@ const signup = async (req, res, next) => {
         message: "Email is already used",
       });
     }
-    const { id, email, subscription, avatarURL } = await Users.create(req.body);
+    const { id, email, subscription, avatarURL, verifyToken } =
+    await Users.create(req.body);
+
+  try {
+    const emailService = new EmailService();
+    await emailService.sendVerifyEmail(verifyToken, email);
+  } catch (err) {
+    console.log(error.message);
+  }
     return res.status(HttpCode.CREATED).json({
       status: "success",
       code: HttpCode.CREATED,
@@ -49,12 +59,23 @@ const signup = async (req, res, next) => {
     next(error);
   }
 };
+const verify = async (req, res, next) => {
+  try {
+    const user = await Users.tryVerify(req.params.verifyToken);
+    if (user) {
+      return res.json({ message: "Verification successful" });
+    }
+    return res.status(HttpCode.NOT_FOUND).json({ message: "User not found" });
+  } catch (err) {
+    next(err);
+  }
+};
 
 const login = async (req, res, next) => {
   try {
     const user = await Users.findByEmail(req.body.email);
     const isValidPassword = await user?.isValidPassword(req.body.password);
-    if (!user || !isValidPassword) {
+    if (!user || !isValidPassword || !user.isVerified) {
       return res.status(HttpCode.UNAUTHORIZED).json({
         status: "error",
         code: HttpCode.UNAUTHORIZED,
@@ -134,4 +155,24 @@ const updateAvatar = async (req, res, next) => {
     next(err);
   }
 };
-module.exports = { signup, login, logout, updateSubscription, getCurrent, updateAvatar };
+
+const resendVerifyEmail = async (req, res, next) => {
+  try {
+    const user = await Users.findByEmail(req.body.email);
+    if (!user) {
+      return res.status(HttpCode.NOT_FOUND).json({ message: "User not found" });
+    }
+    if (user.isVerified) {
+      return res
+        .status(HttpCode.BAD_REQUEST)
+        .json({ message: "Verification has already been passed" });
+    }
+    const emailService = new EmailService();
+    await emailService.sendVerifyEmail(user.verifyToken, user.email);
+    res.json({ message: "Verification email sent" });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { signup, verify, login, logout, updateSubscription, getCurrent, updateAvatar, resendVerifyEmail };

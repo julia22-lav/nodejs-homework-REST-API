@@ -11,6 +11,15 @@ const schemaSignupUser = Joi.object({
   subsription: Joi.string().optional(),
 });
 
+const schemaResendVerifyEmail = Joi.object({
+  email: Joi.string()
+    .email({
+      minDomainSegments: 2,
+      tlds: { allow: ["com", "net", "de"] },
+    })
+    .required(),
+});
+
 const schemaLoginUser = Joi.object({
   email: Joi.string()
     .email({
@@ -42,6 +51,11 @@ module.exports = {
   signupUserValidation: (req, res, next) => {
     return validate(schemaSignupUser, req.body, next);
   },
+
+  resendVerifyEmailValidation: (req, res, next) => {
+    return validate(schemaResendVerifyEmail, req.body, next);
+  },
+  
   loginUserValidation: (req, res, next) => {
     return validate(schemaLoginUser, req.body, next);
   },
