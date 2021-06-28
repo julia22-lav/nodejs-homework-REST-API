@@ -2,7 +2,10 @@ const Users = require("../repositories/users");
 const { HttpCode } = require("../helpers/constants");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
+const fs = require("fs/promises");
+const path = require("path");
 const SECRET_KEY = process.env.SECRET_KEY;
+const UploadAvatarService = require("../services/local-upload");
 
 const getCurrent = async (req, res, next) => {
   try {
@@ -15,11 +18,11 @@ const getCurrent = async (req, res, next) => {
       });
     }
 
-    const { email, subscription } = user;
+    const { email, subscription, avatarURL } = user;
     return res.json({
       status: "success",
       code: HttpCode.OK,
-      user: { email, subscription },
+      user: { email, subscription, avatarURL },
     });
   } catch (err) {
     next(err);
@@ -36,11 +39,11 @@ const signup = async (req, res, next) => {
         message: "Email is already used",
       });
     }
-    const { id, email, subscription } = await Users.create(req.body);
+    const { id, email, subscription, avatarURL } = await Users.create(req.body);
     return res.status(HttpCode.CREATED).json({
       status: "success",
       code: HttpCode.CREATED,
-      data: { id, email, subscription },
+      data: { id, email, subscription, avatarURL },
     });
   } catch (error) {
     next(error);
@@ -103,4 +106,32 @@ const updateSubscription = async (req, res, next) => {
     next(error);
   }
 };
-module.exports = { signup, login, logout, updateSubscription, getCurrent };
+
+const updateAvatar = async (req, res, next) => {
+  try {
+    if (!req.user) {
+      return res.json({
+        status: "error",
+        code: HttpCode.UNAUTHORIZED,
+        message: "Not authorized",
+      });
+    }
+    const id = req.user.id;
+    const uploads = new UploadAvatarService(process.env.AVATAR_OF_USERS);
+    const avatarUrl = await uploads.saveAvatar({ userId: id, file: req.file });
+    try {
+      await fs.unlink(path.join(process.env.AVATAR_OF_USERS, req.user.avatar));
+    } catch (err) {
+      console.log(err.message);
+    }
+    await Users.updateAvatar(id, avatarUrl);
+    res.json({
+      status: "success",
+      code: HttpCode.OK,
+      data: { avatarUrl },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+module.exports = { signup, login, logout, updateSubscription, getCurrent, updateAvatar };
